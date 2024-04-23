@@ -178,7 +178,7 @@ public class TransportMountSearchableSnapshotAction extends TransportMasterNodeA
             EsExecutors.DIRECT_EXECUTOR_SERVICE, // TODO fork to SNAPSHOT_META and drop the forking below, see #101445
             repositoryDataListener
         );
-        request.setParentTask(new TaskId(clusterService.localNode().getId(), task.getId()));
+
         repositoryDataListener.addListener(listener.delegateFailureAndWrap((delegate, repoData) -> {
             final Map<String, IndexId> indexIds = repoData.getIndices();
             if (indexIds.containsKey(indexName) == false) {
@@ -263,7 +263,9 @@ public class TransportMountSearchableSnapshotAction extends TransportMasterNodeA
                         // Fail the restore if the snapshot found above is swapped out from under us before the restore happens
                         .snapshotUuid(snapshotId.getUUID())
                         // Log snapshot restore at the DEBUG log level
-                        .quiet(true),
+                        .quiet(true)
+                        // link to its child snapshot restore
+                        .parentTaskId(new TaskId(clusterService.localNode().getId(), task.getId())),
                     delegate
                 );
         }), threadPool.executor(ThreadPool.Names.SNAPSHOT_META), null);

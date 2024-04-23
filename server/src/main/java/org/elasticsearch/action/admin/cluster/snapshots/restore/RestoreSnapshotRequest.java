@@ -18,6 +18,7 @@ import org.elasticsearch.common.io.stream.StreamInput;
 import org.elasticsearch.common.io.stream.StreamOutput;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.core.Nullable;
+import org.elasticsearch.tasks.TaskId;
 import org.elasticsearch.xcontent.ToXContentObject;
 import org.elasticsearch.xcontent.XContentBuilder;
 import org.elasticsearch.xcontent.XContentType;
@@ -508,6 +509,14 @@ public class RestoreSnapshotRequest extends MasterNodeRequest<RestoreSnapshotReq
     }
 
     /**
+     * @param taskId Set a reference to task that created this request.
+     */
+    public RestoreSnapshotRequest parentTaskId(TaskId taskId) {
+        setParentTask(taskId);
+        return this;
+    }
+
+    /**
      * Parses restore definition
      *
      * @param source restore definition
@@ -668,4 +677,5 @@ public class RestoreSnapshotRequest extends MasterNodeRequest<RestoreSnapshotReq
             return builder;
         });
     }
+
 }
