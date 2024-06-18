@@ -42,26 +42,11 @@ import org.elasticsearch.discovery.zen.MembershipAction;
 import org.elasticsearch.discovery.zen.ZenDiscovery;
 import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.threadpool.ThreadPool.Names;
-import org.elasticsearch.transport.EmptyTransportResponseHandler;
-import org.elasticsearch.transport.TransportChannel;
-import org.elasticsearch.transport.TransportException;
-import org.elasticsearch.transport.TransportRequest;
-import org.elasticsearch.transport.TransportRequestOptions;
-import org.elasticsearch.transport.TransportResponse;
+import org.elasticsearch.transport.*;
 import org.elasticsearch.transport.TransportResponse.Empty;
-import org.elasticsearch.transport.TransportResponseHandler;
-import org.elasticsearch.transport.TransportService;
 
 import java.io.IOException;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -70,26 +55,69 @@ import java.util.function.Supplier;
 
 public class JoinHelper {
 
+
+    /**
+     * 记录日志信息的Logger实例。
+     */
     private static final Logger logger = LogManager.getLogger(JoinHelper.class);
 
+    /**
+     * 节点加入动作的名称，用于集群协调过程中的节点加入请求。
+     */
     public static final String JOIN_ACTION_NAME = "internal:cluster/coordination/join";
+
+    /**
+     * 节点加入验证动作的名称，用于在集群协调过程中验证节点加入请求。
+     */
     public static final String VALIDATE_JOIN_ACTION_NAME = "internal:cluster/coordination/join/validate";
+
+    /**
+     * 开始节点加入动作的名称，用于启动集群协调过程中的节点加入。
+     */
     public static final String START_JOIN_ACTION_NAME = "internal:cluster/coordination/start_join";
 
-    // the timeout for each join attempt
+    /**
+     * 每个节点加入尝试的超时设置。
+     * <p>
+     * 这个设置定义了节点在尝试加入集群时等待响应的最长时间。
+     */
     public static final Setting<TimeValue> JOIN_TIMEOUT_SETTING =
         Setting.timeSetting("cluster.join.timeout",
             TimeValue.timeValueMillis(60000), TimeValue.timeValueMillis(1), Setting.Property.NodeScope);
 
+    /**
+     * 主节点服务，用于处理与主节点相关的逻辑。
+     */
     private final MasterService masterService;
+
+    /**
+     * 传输服务，负责节点间的通信。
+     */
     private final TransportService transportService;
+
+    /**
+     * 加入任务执行器，用于执行与节点加入相关的任务。
+     */
     private final JoinTaskExecutor joinTaskExecutor;
+
+    /**
+     * 加入超时时间，定义了节点加入尝试的超时时长。
+     */
     private final TimeValue joinTimeout;
 
+    /**
+     * 待处理的外出节点加入请求集合，存储了节点对和加入请求的元组。
+     * <p>
+     * 集合是线程安全的，用于同步对外出加入请求的处理。
+     */
     private final Set<Tuple<DiscoveryNode, JoinRequest>> pendingOutgoingJoins = Collections.synchronizedSet(new HashSet<>());
 
+    /**
+     * 原子引用，用于存储最后失败的节点加入尝试的信息。
+     * <p>
+     * 这可以用于记录和分析加入过程中的失败原因。
+     */
     private AtomicReference<FailedJoinAttempt> lastFailedJoinAttempt = new AtomicReference<>();
-
     public JoinHelper(Settings settings, AllocationService allocationService, MasterService masterService,
                       TransportService transportService, LongSupplier currentTermSupplier, Supplier<ClusterState> currentStateSupplier,
                       BiConsumer<JoinRequest, JoinCallback> joinHandler, Function<StartJoinRequest, Join> joinLeaderInTerm,
@@ -111,7 +139,7 @@ public class JoinHelper {
                 final long currentTerm = currentTermSupplier.getAsLong();
                 if (currentState.term() != currentTerm) {
                     final CoordinationMetaData coordinationMetaData =
-                            CoordinationMetaData.builder(currentState.coordinationMetaData()).term(currentTerm).build();
+                        CoordinationMetaData.builder(currentState.coordinationMetaData()).term(currentTerm).build();
                     final MetaData metaData = MetaData.builder(currentState.metaData()).coordinationMetaData(coordinationMetaData).build();
                     currentState = ClusterState.builder(currentState).metaData(metaData).build();
                 }
@@ -228,8 +256,8 @@ public class JoinHelper {
 
         void logNow() {
             logger.log(getLogLevel(exception),
-                    () -> new ParameterizedMessage("failed to join {} with {}", destination, joinRequest),
-                    exception);
+                () -> new ParameterizedMessage("failed to join {} with {}", destination, joinRequest),
+                exception);
         }
 
         static Level getLogLevel(TransportException e) {
@@ -244,10 +272,10 @@ public class JoinHelper {
 
         void logWarnWithTimestamp() {
             logger.info(() -> new ParameterizedMessage("last failed join attempt was {} ago, failed to join {} with {}",
-                            TimeValue.timeValueMillis(TimeValue.nsecToMSec(System.nanoTime() - timestamp)),
-                            destination,
-                            joinRequest),
-                    exception);
+                    TimeValue.timeValueMillis(TimeValue.nsecToMSec(System.nanoTime() - timestamp)),
+                    destination,
+                    joinRequest),
+                exception);
         }
     }
 

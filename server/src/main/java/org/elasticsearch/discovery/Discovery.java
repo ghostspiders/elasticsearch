@@ -30,12 +30,22 @@ import org.elasticsearch.common.component.LifecycleComponent;
 public interface Discovery extends LifecycleComponent, ClusterStatePublisher {
 
     /**
-     * @return stats about the discovery
+     * 获取关于节点发现的统计信息。
+     * <p>
+     * 这个方法返回一个包含了节点发现各种统计数据的对象，这些数据可以用于监控和调试。
+     * <p>
+     * @return 包含节点发现统计信息的对象
      */
     DiscoveryStats stats();
 
     /**
-     * Triggers the first join cycle
+     * 触发初始的加入周期。
+     * <p>
+     * 这个方法启动节点加入集群的初始过程，通常用于节点启动时寻找并加入现有的集群。
+     * <p>
+     * 在这个过程中，节点会尝试与集群中的其他节点建立连接，并参与到主节点选举和集群状态同步中。
+     * <p>
+     * 这个方法通常在节点启动时被调用一次，但在某些情况下，如集群分裂恢复后，可能会再次触发。
      */
     void startInitialJoin();
 

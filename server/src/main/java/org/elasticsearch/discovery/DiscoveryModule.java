@@ -19,8 +19,8 @@
 
 package org.elasticsearch.discovery;
 
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.coordination.Coordinator;
 import org.elasticsearch.cluster.node.DiscoveryNode;
@@ -43,15 +43,7 @@ import org.elasticsearch.threadpool.ThreadPool;
 import org.elasticsearch.transport.TransportService;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -63,32 +55,45 @@ import static org.elasticsearch.node.Node.NODE_NAME_SETTING;
  * A module for loading classes for node discovery.
  */
 public class DiscoveryModule {
+    // 创建一个Logger实例，用于记录日志信息，与DiscoveryModule类关联
     private static final Logger logger = LogManager.getLogger(DiscoveryModule.class);
 
+    // 定义了使用旧版Zen发现机制的字符串常量
     public static final String ZEN_DISCOVERY_TYPE = "legacy-zen";
+    // 定义了使用新版Zen2发现机制的字符串常量
     public static final String ZEN2_DISCOVERY_TYPE = "zen";
 
+    // 定义了单节点发现机制的字符串常量，用于单一节点运行Elasticsearch时
     public static final String SINGLE_NODE_DISCOVERY_TYPE = "single-node";
 
+    // 发现类型设置，指定了默认值为ZEN2_DISCOVERY_TYPE，并且设置了作用域为节点级别
     public static final Setting<String> DISCOVERY_TYPE_SETTING =
         new Setting<>("discovery.type", ZEN2_DISCOVERY_TYPE, Function.identity(), Property.NodeScope);
+    // 已弃用的Zen发现种子节点提供者设置，用于配置旧版Zen发现的种子节点
     public static final Setting<List<String>> LEGACY_DISCOVERY_HOSTS_PROVIDER_SETTING =
         Setting.listSetting("discovery.zen.hosts_provider", Collections.emptyList(), Function.identity(),
             Property.NodeScope, Property.Deprecated);
+    // 种子节点提供者设置，用于配置新版Zen2发现的种子节点
     public static final Setting<List<String>> DISCOVERY_SEED_PROVIDERS_SETTING =
         Setting.listSetting("discovery.seed_providers", Collections.emptyList(), Function.identity(),
             Property.NodeScope);
 
+    // 当前DiscoveryModule的发现服务实例
     private final Discovery discovery;
 
     public DiscoveryModule(Settings settings, ThreadPool threadPool, TransportService transportService,
                            NamedWriteableRegistry namedWriteableRegistry, NetworkService networkService, MasterService masterService,
                            ClusterApplier clusterApplier, ClusterSettings clusterSettings, List<DiscoveryPlugin> plugins,
                            AllocationService allocationService, Path configFile, GatewayMetaState gatewayMetaState) {
+        // 初始化节点加入验证器的集合
         final Collection<BiConsumer<DiscoveryNode, ClusterState>> joinValidators = new ArrayList<>();
+        // 初始化种子主机提供者的映射
         final Map<String, Supplier<SeedHostsProvider>> hostProviders = new HashMap<>();
+        // 添加基于设置的种子主机提供者
         hostProviders.put("settings", () -> new SettingsBasedSeedHostsProvider(settings, transportService));
+        // 添加基于文件的种子主机提供者
         hostProviders.put("file", () -> new FileBasedSeedHostsProvider(configFile));
+        // 遍历插件，注册种子主机提供者和节点加入验证器
         for (DiscoveryPlugin plugin : plugins) {
             plugin.getSeedHostProviders(transportService, networkService).forEach((key, value) -> {
                 if (hostProviders.put(key, value) != null) {
@@ -101,34 +106,39 @@ public class DiscoveryModule {
             }
         }
 
+        // 获取种子提供者的名称列表
         List<String> seedProviderNames = getSeedProviderNames(settings);
-        // for bwc purposes, add settings provider even if not explicitly specified
-        if (seedProviderNames.contains("settings") == false) {
-            List<String> extendedSeedProviderNames = new ArrayList<>();
-            extendedSeedProviderNames.add("settings");
-            extendedSeedProviderNames.addAll(seedProviderNames);
+        // 为了向后兼容，确保设置提供者被包含在内
+        if (!seedProviderNames.contains("settings")) {
+            List<String> extendedSeedProviderNames = new ArrayList<>(seedProviderNames);
+            extendedSeedProviderNames.add(0, "settings"); // 确保设置提供者是第一个
             seedProviderNames = extendedSeedProviderNames;
         }
 
+        // 检查是否有未识别的种子提供者名称
         final Set<String> missingProviderNames = new HashSet<>(seedProviderNames);
         missingProviderNames.removeAll(hostProviders.keySet());
-        if (missingProviderNames.isEmpty() == false) {
+        if (!missingProviderNames.isEmpty()) {
             throw new IllegalArgumentException("Unknown seed providers " + missingProviderNames);
         }
 
+        // 创建种子主机提供者列表
         List<SeedHostsProvider> filteredSeedProviders = seedProviderNames.stream()
             .map(hostProviders::get).map(Supplier::get).collect(Collectors.toList());
 
+        // 获取发现类型
         String discoveryType = DISCOVERY_TYPE_SETTING.get(settings);
 
+        // 创建种子主机提供者实例
         final SeedHostsProvider seedHostsProvider = hostsResolver -> {
-            final List<TransportAddress> addresses = new ArrayList<>();
+            List<TransportAddress> addresses = new ArrayList<>();
             for (SeedHostsProvider provider : filteredSeedProviders) {
                 addresses.addAll(provider.getSeedAddresses(hostsResolver));
             }
             return Collections.unmodifiableList(addresses);
         };
 
+        // 根据发现类型创建相应的发现服务实例
         if (ZEN2_DISCOVERY_TYPE.equals(discoveryType) || SINGLE_NODE_DISCOVERY_TYPE.equals(discoveryType)) {
             discovery = new Coordinator(NODE_NAME_SETTING.get(settings),
                 settings, clusterSettings,
@@ -142,9 +152,9 @@ public class DiscoveryModule {
             throw new IllegalArgumentException("Unknown discovery type [" + discoveryType + "]");
         }
 
+        // 记录使用的发现类型和种子主机提供者信息
         logger.info("using discovery type [{}] and seed hosts providers {}", discoveryType, seedProviderNames);
     }
-
     private List<String> getSeedProviderNames(Settings settings) {
         if (LEGACY_DISCOVERY_HOSTS_PROVIDER_SETTING.exists(settings)) {
             if (DISCOVERY_SEED_PROVIDERS_SETTING.exists(settings)) {
