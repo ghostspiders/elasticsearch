@@ -40,44 +40,107 @@ import java.util.function.Predicate;
 
 
 /**
- * A discovery node represents a node that is part of the cluster.
+ * 一个发现节点（DiscoveryNode）代表集群中的一个节点。
+ * <p>
+ * 此类用于存储有关集群节点的信息，包括节点的网络地址、唯一标识符、版本信息等。
+ * 这些信息在节点发现、集群状态管理和节点间通信时使用。
  */
 public class DiscoveryNode implements Writeable, ToXContentFragment {
 
+    /**
+     * 表示仅协调节点的常量字符串。
+     */
     static final String COORDINATING_ONLY = "coordinating_only";
 
+    /**
+     * 判断节点是否需要本地存储。
+     * @param settings 节点的设置。
+     * @return 如果节点需要本地存储，则返回true。
+     */
     public static boolean nodeRequiresLocalStorage(Settings settings) {
+        // 获取节点本地存储设置的值
         boolean localStorageEnable = Node.NODE_LOCAL_STORAGE_SETTING.get(settings);
+        // 如果本地存储被禁用，并且节点设置了数据或主节点角色，则抛出异常
         if (localStorageEnable == false &&
             (Node.NODE_DATA_SETTING.get(settings) ||
                 Node.NODE_MASTER_SETTING.get(settings))
-            ) {
-            // TODO: make this a proper setting validation logic, requiring multi-settings validation
+        ) {
+            // 抛出异常，因为存储不能为数据节点或主节点禁用
             throw new IllegalArgumentException("storage can not be disabled for master and data nodes");
         }
         return localStorageEnable;
     }
 
+    /**
+     * 判断设置是否启用了主节点角色。
+     * @param settings 节点的设置。
+     * @return 如果启用了主节点角色，则返回true。
+     */
     public static boolean isMasterNode(Settings settings) {
         return Node.NODE_MASTER_SETTING.get(settings);
     }
 
+    /**
+     * 判断设置是否启用了数据节点角色。
+     * @param settings 节点的设置。
+     * @return 如果启用了数据节点角色，则返回true。
+     */
     public static boolean isDataNode(Settings settings) {
         return Node.NODE_DATA_SETTING.get(settings);
     }
 
+    /**
+     * 判断设置是否启用了摄入节点角色。
+     * @param settings 节点的设置。
+     * @return 如果启用了摄入节点角色，则返回true。
+     */
     public static boolean isIngestNode(Settings settings) {
         return Node.NODE_INGEST_SETTING.get(settings);
     }
 
+    /**
+     * 节点名称。
+     */
     private final String nodeName;
+
+    /**
+     * 节点ID。
+     */
     private final String nodeId;
+
+    /**
+     * 节点的临时ID，用于在节点重新启动时保持一致性。
+     */
     private final String ephemeralId;
+
+    /**
+     * 节点的主机名。
+     */
     private final String hostName;
+
+    /**
+     * 节点的主机地址。
+     */
     private final String hostAddress;
+
+    /**
+     * 节点的传输地址，用于节点间的通信。
+     */
     private final TransportAddress address;
+
+    /**
+     * 节点的属性映射，包含节点特定的配置信息。
+     */
     private final Map<String, String> attributes;
+
+    /**
+     * 节点运行的Elasticsearch版本。
+     */
     private final Version version;
+
+    /**
+     * 节点的角色集合，如主节点、数据节点等。
+     */
     private final Set<Role> roles;
 
 
@@ -189,25 +252,43 @@ public class DiscoveryNode implements Writeable, ToXContentFragment {
         this.roles = Collections.unmodifiableSet(rolesSet);
     }
 
-    /** Creates a DiscoveryNode representing the local node. */
+    /**
+     * 创建一个代表本地节点的DiscoveryNode。
+     * @param settings 节点的设置。
+     * @param publishAddress 节点用于通信的传输地址。
+     * @param nodeId 节点的唯一标识符。
+     * @return 返回一个新的DiscoveryNode实例，代表本地节点。
+     */
     public static DiscoveryNode createLocal(Settings settings, TransportAddress publishAddress, String nodeId) {
+        // 从设置中获取节点属性
         Map<String, String> attributes = Node.NODE_ATTRIBUTES.getAsMap(settings);
+        // 从设置中获取节点的角色
         Set<Role> roles = getRolesFromSettings(settings);
+        // 创建并返回代表本地节点的DiscoveryNode实例
         return new DiscoveryNode(Node.NODE_NAME_SETTING.get(settings), nodeId, publishAddress, attributes, roles, Version.CURRENT);
     }
 
-    /** extract node roles from the given settings */
+    /**
+     * 从给定的设置中提取节点的角色。
+     * @param settings 节点的设置。
+     * @return 返回一个包含节点角色的集合。
+     */
     public static Set<Role> getRolesFromSettings(Settings settings) {
+        // 创建一个空的角色集合
         Set<Role> roles = EnumSet.noneOf(Role.class);
+        // 检查摄入节点设置，并添加相应的角色
         if (Node.NODE_INGEST_SETTING.get(settings)) {
             roles.add(Role.INGEST);
         }
+        // 检查主节点设置，并添加相应的角色
         if (Node.NODE_MASTER_SETTING.get(settings)) {
             roles.add(Role.MASTER);
         }
+        // 检查数据节点设置，并添加相应的角色
         if (Node.NODE_DATA_SETTING.get(settings)) {
             roles.add(Role.DATA);
         }
+        // 返回包含所有检测到的角色的集合
         return roles;
     }
 

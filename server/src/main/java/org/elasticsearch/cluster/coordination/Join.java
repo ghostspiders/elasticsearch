@@ -35,17 +35,51 @@ import java.io.IOException;
  * source node.
  */
 public class Join implements Writeable {
+    /**
+     * 源节点，表示发送当前操作或请求的节点。
+     * 在节点发现、集群状态更新等过程中，这个变量用于标识发起操作的节点。
+     */
     private final DiscoveryNode sourceNode;
-    private final DiscoveryNode targetNode;
-    private final long term;
-    private final long lastAcceptedTerm;
-    private final long lastAcceptedVersion;
 
+    /**
+     * 目标节点，表示当前操作或请求的目标节点。
+     * 在节点加入、数据分片分配等场景中，这个变量用于标识操作的目标节点。
+     */
+    private final DiscoveryNode targetNode;
+
+    /**
+     * 当前任期，用于标识集群中的一个选举周期。
+     * 在Raft算法或其他基于任期的共识算法中，每个任期都会有一个唯一的标识符。
+     */
+    private final long term;
+
+    /**
+     * 上一次接受的任期，表示节点最后一次成功加入集群并接受集群状态的任期。
+     * 这个值用于在选举和状态同步过程中确保数据的一致性。
+     */
+    private final long lastAcceptedTerm;
+
+    /**
+     * 上一次接受的版本，表示节点最后一次成功加入集群并接受集群状态的版本号。
+     * 这个值通常用于追踪集群状态的变更，确保状态更新的顺序性。
+     */
+    private final long lastAcceptedVersion;
+    /**
+     * 初始化一个新的Join实例，该实例表示节点加入集群的请求或操作。
+     *
+     * @param sourceNode 加入请求的发起节点，即源节点。
+     * @param targetNode 加入请求的目标节点，通常是想要加入的集群中的主节点。
+     * @param term 当前任期，用于在选举和集群状态管理中标识时间序列。
+     * @param lastAcceptedTerm 节点最后一次接受的任期，用于确保集群状态的一致性。
+     * @param lastAcceptedVersion 节点最后一次接受的集群状态版本，用于追踪状态变更。
+     */
     public Join(DiscoveryNode sourceNode, DiscoveryNode targetNode, long term, long lastAcceptedTerm, long lastAcceptedVersion) {
+        // 断言确保传入的任期和版本号不小于0
         assert term >= 0;
         assert lastAcceptedTerm >= 0;
         assert lastAcceptedVersion >= 0;
 
+        // 初始化类的成员变量
         this.sourceNode = sourceNode;
         this.targetNode = targetNode;
         this.term = term;
