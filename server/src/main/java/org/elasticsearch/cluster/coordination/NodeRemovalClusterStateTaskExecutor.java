@@ -67,26 +67,42 @@ public class NodeRemovalClusterStateTaskExecutor implements ClusterStateTaskExec
         this.logger = logger;
     }
 
+    /**
+     * 执行集群任务。
+     * 此方法遍历任务列表，移除那些在当前集群状态中不存在的节点，然后根据结果更新集群状态。
+     *
+     * @param currentState 当前集群状态。
+     * @param tasks 要执行的任务列表。
+     * @return 包含执行结果的ClusterTasksResult对象。
+     * @throws Exception 如果执行过程中发生异常。
+     */
     @Override
     public ClusterTasksResult<Task> execute(final ClusterState currentState, final List<Task> tasks) throws Exception {
+        // 创建基于当前集群状态的节点构建器。
         final DiscoveryNodes.Builder remainingNodesBuilder = DiscoveryNodes.builder(currentState.nodes());
-        boolean removed = false;
+        boolean removed = false; // 标记是否移除了任何节点。
+
+        // 遍历任务列表。
         for (final Task task : tasks) {
+            // 如果当前集群状态中存在该节点，则从构建器中移除该节点。
             if (currentState.nodes().nodeExists(task.node())) {
                 remainingNodesBuilder.remove(task.node());
-                removed = true;
+                removed = true; // 设置标记为真。
             } else {
+                // 如果节点不存在，则记录调试日志并忽略该任务。
                 logger.debug("node [{}] does not exist in cluster state, ignoring", task);
             }
         }
 
+        // 如果没有移除任何节点，则保持当前集群状态并返回所有任务的成功结果。
         if (!removed) {
-            // no nodes to remove, keep the current cluster state
             return ClusterTasksResult.<Task>builder().successes(tasks).build(currentState);
         }
 
+        // 如果移除了节点，使用剩余节点的构建器创建新的集群状态。
         final ClusterState remainingNodesClusterState = remainingNodesClusterState(currentState, remainingNodesBuilder);
 
+        // 根据当前状态、任务和剩余节点的集群状态获取任务的集群任务结果。
         return getTaskClusterTasksResult(currentState, tasks, remainingNodesClusterState);
     }
 
