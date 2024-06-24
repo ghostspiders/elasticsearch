@@ -324,10 +324,9 @@ public abstract class PeerFinder {
 
     public interface ConfiguredHostsResolver {
         /**
-         * Attempt to resolve the configured unicast hosts list to a list of transport addresses.
+         * 尝试将配置的单播主机列表解析为传输地址列表。
          *
-         * @param consumer Consumer for the resolved list. May not be called if an error occurs or if another resolution attempt is in
-         *                 progress.
+         * @param consumer 用于解析列表的消费者。如果在发生错误或有其他解析尝试正在进行时，可能不会被调用。
          */
         void resolveConfiguredHosts(Consumer<List<TransportAddress>> consumer);
     }

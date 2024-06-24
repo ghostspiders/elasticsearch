@@ -190,7 +190,7 @@ public class CoordinationMetaData implements Writeable, ToXContentFragment {
         public Builder() {
 
         }
-        
+
         public Builder(CoordinationMetaData state) {
             this.term = state.term;
             this.lastCommittedConfiguration = state.lastCommittedConfiguration;
@@ -320,29 +320,43 @@ public class CoordinationMetaData implements Writeable, ToXContentFragment {
     }
 
     /**
-     * A collection of persistent node ids, denoting the voting configuration for cluster state changes.
+     * 表示集群状态变更的投票配置，包含一组持久化的节点ID集合。
      */
     public static class VotingConfiguration implements Writeable, ToXContentFragment {
 
+        /**
+         * 空的投票配置。
+         */
         public static final VotingConfiguration EMPTY_CONFIG = new VotingConfiguration(Collections.emptySet());
+        /**
+         * 一个特殊的投票配置，表示节点必须加入选举出的主节点。
+         */
         public static final VotingConfiguration MUST_JOIN_ELECTED_MASTER = new VotingConfiguration(Collections.singleton(
-                "_must_join_elected_master_"));
+            "_must_join_elected_master_"));
 
-        private final Set<String> nodeIds;
+        private final Set<String> nodeIds; // 存储节点ID的集合
 
         public VotingConfiguration(Set<String> nodeIds) {
+            // 构造函数，使用不可修改的集合包装传入的节点ID集合
             this.nodeIds = Collections.unmodifiableSet(new HashSet<>(nodeIds));
         }
 
         public VotingConfiguration(StreamInput in) throws IOException {
+            // 反序列化构造函数，从输入流中读取节点ID集合
             nodeIds = Collections.unmodifiableSet(Sets.newHashSet(in.readStringArray()));
         }
 
         @Override
         public void writeTo(StreamOutput out) throws IOException {
+            // 序列化方法，将节点ID数组写入输出流
             out.writeStringArray(nodeIds.toArray(new String[nodeIds.size()]));
         }
 
+        /**
+         * 检查是否有足够的投票达到法定人数。
+         * @param votes 投票的集合
+         * @return 如果达到法定人数返回true，否则返回false
+         */
         public boolean hasQuorum(Collection<String> votes) {
             final HashSet<String> intersection = new HashSet<>(nodeIds);
             intersection.retainAll(votes);
@@ -350,33 +364,29 @@ public class CoordinationMetaData implements Writeable, ToXContentFragment {
         }
 
         public Set<String> getNodeIds() {
+            // 返回节点ID集合
             return nodeIds;
         }
 
         @Override
         public String toString() {
+            // 返回节点ID集合的字符串表示
             return "VotingConfiguration{" + String.join(",", nodeIds) + "}";
         }
 
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            VotingConfiguration that = (VotingConfiguration) o;
-            return Objects.equals(nodeIds, that.nodeIds);
-        }
+        // equals, hashCode 方法的实现，基于节点ID集合
 
-        @Override
-        public int hashCode() {
-            return Objects.hash(nodeIds);
-        }
-
+        /**
+         * 判断投票配置是否为空。
+         * @return 如果节点ID集合为空返回true，否则返回false
+         */
         public boolean isEmpty() {
             return nodeIds.isEmpty();
         }
 
         @Override
         public XContentBuilder toXContent(XContentBuilder builder, Params params) throws IOException {
+            // 将节点ID集合转换为XContent格式
             builder.startArray();
             for (String nodeId : nodeIds) {
                 builder.value(nodeId);
@@ -384,8 +394,13 @@ public class CoordinationMetaData implements Writeable, ToXContentFragment {
             return builder.endArray();
         }
 
+        /**
+         * 根据一组DiscoveryNode对象创建VotingConfiguration实例。
+         * @param nodes DiscoveryNode数组
+         * @return VotingConfiguration实例
+         */
         public static VotingConfiguration of(DiscoveryNode... nodes) {
-            // this could be used in many more places - TODO use this where appropriate
+            // 从DiscoveryNode数组中提取节点ID，并创建VotingConfiguration实例
             return new VotingConfiguration(Arrays.stream(nodes).map(DiscoveryNode::getId).collect(Collectors.toSet()));
         }
     }

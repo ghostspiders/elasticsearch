@@ -57,11 +57,11 @@ import static org.elasticsearch.cluster.routing.UnassignedInfo.INDEX_DELAYED_NOD
 
 
 /**
- * This service manages the node allocation of a cluster. For this reason the
- * {@link AllocationService} keeps {@link AllocationDeciders} to choose nodes
- * for shard allocation. This class also manages new nodes joining the cluster
- * and rerouting of shards.
- */
+ *此服务管理集群的节点分配。因此
+ **｛@link AllocationService｝保持｛@linkAllocationDeciders｝选择节点
+ *用于碎片分配。此类还管理加入集群的新节点
+ *以及碎片的重新路由。
+ **/
 public class AllocationService {
 
     private static final Logger logger = LogManager.getLogger(AllocationService.class);
